@@ -61,7 +61,7 @@ enterprise-rag-platform/
 │   ├── config/          # 配置属性绑定、本地向量库装配
 │   ├── domain/          # 切片、引用、问答结果等领域模型
 │   ├── ingest/          # 文档摄取：切分器 + 入库服务
-│   ├── retrieval/       # 向量检索（含知识库隔离与距离换算）
+│   ├── retrieval/       # 向量检索（含知识库隔离与相似度阈值裁剪）
 │   ├── qa/              # RAG 主链路：引用核对 + 生成
 │   ├── web/             # REST 控制器、DTO、统一异常处理
 │   └── observability/   # 业务指标注册
@@ -79,6 +79,11 @@ enterprise-rag-platform/
 ---
 
 ## 快速开始
+
+```bash
+git clone git@github.com:1240945123/enterprise-rag-platform.git
+cd enterprise-rag-platform
+```
 
 ### 方式 A：零基础设施（推荐先试这个）
 
