@@ -1,0 +1,38 @@
+# 两套 profile 的具体配置。注意：
+# 「哪个 profile 生效」的开关必须写在主文件 application.yml 里；
+# 写在 profile 专属文档（本文件）中会被 Spring Boot 3 判定为非法，
+# 且会因为「该文件仅在 profile 已激活时才加载」而永远读不到。
+
+---
+# 本地零基础设施模式：内存向量库，无需 Docker / PostgreSQL 即可跑通全链路
+spring:
+  config:
+    activate:
+      on-profile: local
+  autoconfigure:
+    exclude: org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+
+kb:
+  store: simple
+
+management:
+  # 注意：spring.autoconfigure.exclude 写在 profile 文档里对数据源无效
+  # （排除动作发生在 profile 文档生效之前），HikariDataSource 仍会被创建。
+  # 本地零基础设施模式下没有数据库，直接关掉 db 健康检查，避免 health 整体 DOWN。
+  health:
+    db:
+      enabled: false
+
+---
+# 生产形态：真实 PGvector 持久化，需先 docker compose up -d
+spring:
+  config:
+    activate:
+      on-profile: pgvector
+  datasource:
+    url: ${PG_URL:jdbc:postgresql://localhost:5432/kb}
+    username: ${PG_USERNAME:kb}
+    password: ${PG_PASSWORD:kb}
+
+kb:
+  store: pgvector

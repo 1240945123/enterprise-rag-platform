@@ -1,0 +1,35 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### 环境变量与密钥（绝不入库）###
+.env
+.env.local
+*.local
+
+### IDE ###
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+
+### 系统 ###
+.DS_Store
+Thumbs.db
+
+### 运行时产物 ###
+logs/
+*.log
+.onnx-cache/
+.onnx/
+runtime-data/
+
+### 临时诊断与探测脚本 ###
+tmp/
+_javaprocs.txt
+_diag*.txt

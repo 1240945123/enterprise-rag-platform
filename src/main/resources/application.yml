@@ -1,0 +1,97 @@
+server:
+  port: 8080
+
+# 默认使用零基础设施的 local 模式；切换到 pgvector 用 SPRING_PROFILES_ACTIVE=pgvector。
+# 注意：激活语句必须写在主文件里——写在 application-local.yml 中会因为
+# 「profile 未激活时该文件不加载」而永远读不到。
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  application:
+    name: enterprise-rag-platform
+
+  datasource:
+    url: ${PG_URL:jdbc:postgresql://localhost:5432/kb}
+    username: ${PG_USERNAME:kb}
+    password: ${PG_PASSWORD:kb}
+  # 未在 pgvector profile 下不主动建连，避免本地零依赖模式启动失败
+  main:
+    lazy-initialization: false
+  jdbc:
+    datasource:
+      initialization-mode: never
+
+  ai:
+    model:
+      embedding: ${EMBEDDING_PROVIDER:transformers}
+    openai:
+      # DeepSeek / DashScope / OpenAI 均兼容此协议，改这两个环境变量即可切换。
+      base-url: ${LLM_BASE_URL:https://api.deepseek.com}
+      api-key: ${LLM_API_KEY:unused}
+      chat:
+        options:
+          model: ${LLM_MODEL:deepseek-chat}
+      embedding:
+        options:
+          model: ${EMBEDDING_MODEL:text-embedding-3-small}
+    # transformers（本地 ONNX）：配置前缀为 spring.ai.embedding.transformer
+    # 默认从 Spring AI 远端拉取模型；离线环境可用环境变量指向本地文件：
+    #   SPRING_AI_EMBEDDING_TRANSFORMER_ONNX_MODEL_URI=file:/path/to/model.onnx
+    #   SPRING_AI_EMBEDDING_TRANSFORMER_TOKENIZER_URI=file:/path/to/tokenizer.json
+    #   SPRING_AI_EMBEDDING_TRANSFORMER_CACHE_DIRECTORY=/path/to/cache
+    embedding:
+      transformer:
+        cache:
+          enabled: true
+          directory: ${SPRING_AI_EMBEDDING_TRANSFORMER_CACHE_DIRECTORY:.onnx-cache}
+        onnx:
+          model-uri: ${SPRING_AI_EMBEDDING_TRANSFORMER_ONNX_MODEL_URI:}
+        tokenizer:
+          uri: ${SPRING_AI_EMBEDDING_TRANSFORMER_TOKENIZER_URI:}
+    vectorstore:
+      pgvector:
+        index-type: hnsw
+        distance-type: cosine_distance
+        dimensions: ${PGVECTOR_DIMENSIONS:1024}
+        initialize-schema: true
+        remove-existing-index: false
+
+# 知识库业务参数
+kb:
+  ingest:
+    chunk-size: ${CHUNK_SIZE:800}
+    overlap: ${CHUNK_OVERLAP:120}
+  retrieval:
+    top-k: ${RETRIEVAL_TOP_K:5}
+    # 相似度阈值：低于此分数的切片不参与作答。
+    # ⚠️ 该值与 Embedding 模型强相关，换模型必须重新标定——
+    # 不同模型的分数分布不可比（本地 ONNX 小模型中文分数会挤在 0.46~0.53，
+    # 而 text-embedding-v3 相关句 0.60+、无关句 0.41 以下，可分性良好）。
+    # 默认 0.50 是按 DashScope text-embedding-v3 实测标定：
+    #   相关问法 0.600~0.801｜无关问法 0.384~0.409 → 取两簇中点 0.50。
+    # 调低会放进无依据内容（幻觉风险），调高会把真实问题误判为无资料（拒答）。
+    min-score: ${RETRIEVAL_MIN_SCORE:0.5}
+  qa:
+    min-citation-score: ${MIN_CITATION_SCORE:0.5}
+    min-citations: ${MIN_CITATIONS:1}
+
+# 可观测性
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: enterprise-rag-platform
+    distribution:
+      percentiles-histogram:
+        kb.qa.latency: true
+
+logging:
+  level:
+    root: INFO
+    com.tianchen.kb: INFO
